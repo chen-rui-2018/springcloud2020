@@ -20,7 +20,8 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 @RequestMapping("/consumer")
 public class OrderController {
-    public  static final  String PAYMENT_URL = "http://localhost:8001";
+    public  static final  String PAYMENT_URL = "http://cloud-payment-service";
+//    public  static final  String PAYMENT_URL = "http://localhost:8001";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -28,10 +29,10 @@ public class OrderController {
     @GetMapping("/payment/create")
     public CommonResult<Payment> createPayment(Payment payment){
 
-        return restTemplate.postForObject(PAYMENT_URL+"payment/create",payment,CommonResult.class);
+        return restTemplate.postForObject(PAYMENT_URL+"/payment/create",payment,CommonResult.class);
     }
     @GetMapping("/payment/getPayment/{id}")
     public CommonResult<Payment> getPayment(@PathVariable long id){
-        return restTemplate.getForObject(PAYMENT_URL+"payment/getPaymentById/"+id,CommonResult.class);
+        return restTemplate.getForObject(PAYMENT_URL+"/payment/getPaymentById/"+id,CommonResult.class);
     }
 }

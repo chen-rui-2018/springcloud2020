@@ -20,8 +20,10 @@ import org.springframework.web.bind.annotation.*;
 public class PaymentController {
     @Autowired
     private PaymentService paymentService;
+
     @Value("${server.port}")
     private String serverPort;
+
     @PostMapping("/create")
     public CommonResult<Integer> create(@RequestBody  Payment payment){
         int result = paymentService.save(payment);
