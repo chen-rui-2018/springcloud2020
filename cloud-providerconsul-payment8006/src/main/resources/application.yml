@@ -1,0 +1,17 @@
+server:
+  port: 8006
+spring:
+  application:
+    name: consul-provider-payment
+    #consul 注册中心地址
+  cloud:
+    consul:
+      host: 192.168.2.20
+      port: 8500
+      discovery:
+        service-name: ${spring.application.name}
+         # 就是微服务注册时，有个红叉报错
+         #原因SpringBoot服务和Consul不在同一台导致Consul访问不到SpringBoot的服务。
+         #在yml文件里加多个配置即可
+         #表示注册时使用IP而不是hostname
+        prefer-ip-address: true
