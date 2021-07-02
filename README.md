@@ -63,5 +63,31 @@ spingcloud 学习 一
   postForEntity
   GET
   POST
+6.Feign
+  Feign是一个声明式的WebService客户端.使用Feign能让编写web service 客户端更加简单
+  它的使用方法是定义一个服务接口然后再上面添加注解. Feign 也支持可拔插式的编码器和解码器.
+  SpringCloud 对Feign进行了封装 使其支持了Spring MVC 标准注解 和 HttpMessageConverters. 
+  Feign 可以与Eureka 和Ribbon 组合使用 以支持负载均衡;
   
+  Feign 旨在使编写java http 客户端变得更加容易.
+  之前使用 Ribbon + RestTemplate 时,利用RestTemplate 对http请求进行处理,形成了一套模板化的调用方法.
+  但在实际开发中,由于对服务依赖的调用可能不止一处,往往一个接口会被多处调用,所以通常会针对每个微服务自行封装一些客户端类来包装这些依赖服务的调用;
+  所以Feign 在此基础上做了进一步封装,由他来帮助我们定义和实现依赖服务接口的定义.
+  在Feign 的实现下, 我们只需要创建一个接口并且使用注解的方式来配置它(example: Dao 上标注 Mapper注解, 微服务接口上标注 Feign注解)
+  即可完成对服务提供方的接口绑定,简化了使用spring cloud Ribbon 时,自动封装服务调用客户端的开发量;
   
+  Feign 集成的 Ribbon
+  利用Ribbon维护payment的服务列表信息, 并且通过轮询实现了客户端负载均衡,而与Ribbon不同的是 通过Feign 只需要定义服务绑定接口且以声明式的方法,
+  优雅而简单的实现服务调用;
+  
+  main : @EnableFeignClients
+  service(interface) :  @FeignClient(value = "cloud-payment-service") value 为服务名称 
+  method : 与要调用的controller 保持一致   @GetMapping("/payment/getPaymentById/{id}")
+                                         CommonResult<Payment> getPaymentById(@PathVariable(value = "id") long id) ;
+                                         
+  feign : 日志级别
+  NONE : 默认的, 不显示任何日志;
+  BASIC : 仅记录请求方法, URL ,响应状态码及执行时间;
+  HEADERS : 除了basic 中定义的信息外,还有请求和响应头的信息;
+  FULL :    除了 headers 中定义的信息之外, 还有请求和响应的正文及元数据;                                      
+                     
