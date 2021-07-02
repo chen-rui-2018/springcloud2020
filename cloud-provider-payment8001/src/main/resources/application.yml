@@ -29,7 +29,7 @@ eureka:
     #修改eureka 中显示的服务名称
     instance-id: payment8001
     #访问路径可以显示IP地址
-    prefer-ip-address: true
+    prefer-ip-address: false
     #Eureka 客户端向服务端发送心跳时间间隔 单位为 s  默认30
     lease-renewal-interval-in-seconds: 1
     #Eureka 服务端在收到最后一次心跳后的等待时间上限 单位为 s  默认90 超时剔除服务
