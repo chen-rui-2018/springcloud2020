@@ -1,0 +1,19 @@
+server:
+  port: 80
+spring:
+  application:
+    name: cloud-order-service
+eureka:
+  client:
+    fetch-registry: true
+    register-with-eureka: false
+    service-url:
+          defaultZone: http://localhost:7001/eureka
+ribbon:
+  # 指的是建立连接后 从服务器读取到可用资源所用时间 ms
+  ReadTimeout: 5000
+  # 设置建立连接使用的时间 适用于网络状况正常的情况下,两端连接所用的时间 ms
+  ConnectTimeout: 5000
+feign:
+  hystrix:
+    enabled: true
