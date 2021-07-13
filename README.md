@@ -207,4 +207,56 @@ spingcloud 学习 一
                   
                   )
      服务限流
+     
+8.Gateway
+  SpringCloud Gateway 是spring cloud 的一个全新项目, 基于spring5.0 + springboot 2.0 和 project Reactor 等技术开发的网关,它旨在为微服务架构
+  提供一种简单有效的统一的API路由管理方式;
+  SpringCloud Gateway 作为 spring cloud 生态系统中的网关, 目标是代替zuul 在springcloud 2.0 以上版本中,没有对新版本的zuul2.0 以上最新高性能版本进行集成,
+  仍然还是使用的的 zuul 1.x  非Reactor 模式的老版本,而为了提升网关的性能, springcloud gateway 是基于webflux 框架实现的, 而webflux框架底层则使用了高性能的Reactor模式通信框架Netty;
+  SpringCloud Gateway 的目标提供统一的路由方式且基于Filter 链的方式提供了网关基本的功能,例如 安全/监控/指标/限流;
   
+  三大核心概念:
+        Route(路由): 路由是构建网关的基本模块,它由ID,目标URI,一系列的断言和过滤器组成,如果断言为true则匹配该路由;
+        Predicate(断言): 参考的是java8的java.util.function.Predicate
+                         开发人员可以匹配HTTP请求中的所有内容,(请求头/请求参数), 如果请求与断言相匹配则进行路由;
+        Filter(过滤): 指的是Spring 框架中GatewayFilter的实例, 使用过滤器,可以在请求被路由前或者之后对请求进行修改;
+        总体: 路由转发 执行过滤链;
+        
+   predicate:
+      spring cloud gateway 将路由匹配作为spring webflux handlerMapping 基础架构的一部分.
+      spring cloud gateway 包括许多内置的route predicate 工厂. 所有这些Predicate 都与HTTP请求的不同属性匹配, 多个Route Predicate 工厂可以进行组合;
+      spring cloud gateway 创建route对象时, 使用RoutePredicateFactory 创建Predicate对象,Predicate 对象可以赋值给Route Spring cloud gateway 包含许多内置的 Route Predicate Factories;
+      所有这些谓词都匹配HTTP 请求的不同属性, 多种谓词工厂可以组合,并通过逻辑and;
+      
+      1.After Route Predicate
+         在xxx 时间以后: 
+         - After=2021-07-12T17:28:57.437+08:00[Asia/Shanghai]
+      2.Before Route Predicate
+         在xxx 时间之前: 
+      3.Between Route Predicate
+         在xxx 时间 和 xxx时间 之间: 
+      4.Cookie Route Predicate
+          - Cookie=username,zzyy  
+          curl http://localhost:9527/payment/lb --cookie "username=zzyy"
+      5.Header Route Predicate
+           - Header=X-Request-Id,\d+
+          curl http://localhost:9527/payment/lb -H "X-Request-Id:123"
+      6.Host Route Predicate
+          - Host=**.somehost.org,**.antherhost.org
+           curl http://localhost:9527/payment/lb -H "Host:www.somehost.org"
+      7.Method Route Predicate
+          - Method=GET
+      8.Path Route Predicate
+         - Path=/payment/getPaymentById/**
+      9.Query Route Predicate
+         - Query=username,\d+
+        curl http://localhost:9527/payment/lb?username=123
+   Predicate 就是为了实现一组匹配规则,让请求过来找到对应的route 进行处理;
+   
+  GatewayFilter Factories
+  路由过滤器可用于修改进入的HTTP 请求和返回 的HTTP响应,路由过滤只能指定路由进行使用;
+  Spring cloud Gateway 内置了多种路由过滤器, 他们都由GatewayFilter 的工厂类来产生;
+  spring cloud gateway filter:  
+                           生命周期:pre  post
+                           种类: GatewayFilter / GlobalFilter 
+  自定义全局GlobalFilter  implements GlobalFilter,Ordered
