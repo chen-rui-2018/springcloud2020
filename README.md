@@ -260,3 +260,65 @@ spingcloud 学习 一
                            生命周期:pre  post
                            种类: GatewayFilter / GlobalFilter 
   自定义全局GlobalFilter  implements GlobalFilter,Ordered
+  
+9.配置中心 configServer 
+  Spring cloud config 为微服务架构中的微服务提供集中化的外部配置支持,配置服务器为 各个不同微服务应用 的所有环境提供了一个 中心化的外部配置;
+  spring cloud config 分为服务端和客户端两部分;
+  服务端也称为 分布式配置中心 它是一个独立的微服务应用, 用来连接配置服务器, 并为客户端提供获取配置信息, 加密/解密信息等访问接口;
+  客户端 则是通过指定的配置中心来管理应用资源, 以及与业务相关的配置内容, 并在启动的时候从配置中心获取和加载配置信息;
+  配置服务器默认采用 git 来存储配置信息, 这样就有助于对环境配置进行版本管理, 并且可以通过git客户端 工具来方便的管理和访问配置内容;
+  
+  配置文件获取方式: /{label}/{application}-{profile}.yml    master 分支: http://http://config-3344.com:3344/master/config-dev.yml 
+                                                                       http://http://config-3344.com:3344/master/config-test.yml 
+                                                          dev    分支: http://http://config-3344.com:3344/dev/config-test.yml 
+                                                                       http://http://config-3344.com:3344/dev/config-dev.yml 
+                                                                       
+                 /{application}-{profile}.yml              master 分支: http://http://config-3344.com:3344/config-dev.yml 
+                                                                        http://http://config-3344.com:3344/config-test.yml 
+                                                           dev    分支: http://http://config-3344.com:3344/config-test.yml 
+                                                                        http://http://config-3344.com:3344/config-dev.yml
+                 /{application}/{profile}[/{lable}]        http://http://config-3344.com:3344/config/dev/master  
+                                                           http://http://config-3344.com:3344/config/dev/dev              
+  application.yml 是用户级的资源配置项 
+  bootstrap.yml 是系统级的,优先级更高
+  
+  spring cloud 会创建一个 " Bootstrap Context",作为spring 应用的 Application Context 的父上下文. 初始化的时候 Bootstrap Context 负责从 外部源 
+  加载配置属性并解析配置,这两个上下文共享一个从外部获取的 "Environment";
+  Bootstrap 属性有高优先级, 默认情况下, 它们 不会被本地覆盖, Bootstrap context 和 Application Context 有着不同的约定, 所以新增了一个 bootstrap.yml
+  文件,保证Bootstrap Context 和 Application Context 配置的分离;
+  要将 Client 模块下的application.yml 文件修改为 bootstrap.yml 这是很关键的;
+  因为bootstrap.yml 是比 application.yml 先加载的 bootstrap.yml 优先级高于 application.yml;
+  
+  问题: Linux运维修改GitHub 上的配置文件内容后做调整;
+        刷新3344(configServer) 配置中心立即响应;
+        刷新3355(configClient) 客户端没有任何响应;
+        --3355(客户端) 没有变化 除非自己重启或者重新加载;
+  动态刷新:
+      手动刷新: @RefreshScope
+               public class ConfigClientController {}
+               curl -X POST "http://localhost:3355/actuator/refresh"
+        
+  
+10.消息总线
+     在微服务交媾的系统中,通常会使用轻量级的消息代理来构建一个公用的消息主题,并让系统中所有微服务实例都连接起来,由于该主题中产生的消息会被所有实例监听和消费, 所以称为消息总线, 
+     在总线上的各个实例,都可以方便地广播一些需要让其他连接在该主题上的实例都知道的消息,
+     
+     基本原理:
+        configClient 实例都监听MQ中同一个topic(默认是springCloudBus 交换机) 当服务刷新数据时,它会吧这个消息放到topic 中 这样 其他监听同一 topic 的服务就能得到通知,然后去更新自身的配置;
+     分布式自动刷新配置功能;
+     
+     spring cloud bus 配合 spring cloud config 使用可以实现配置的动态刷新;
+     Spring Cloud Bus 是用来将分布式系统的节点 与 轻量级消息系统链接起来的框架 , 它 整合了java 的 事件处理机制 和消息中间件的功能;
+     Bus 支持两种消息代理: RabbitMQ 和 kafka
+     
+     通知方式: 客户端/bus/refresh, 刷新所有客户端配置;
+              服务端ConfigServer 的 /bus/refresh 端点, 而刷新所有客户端配置; 推荐使用
+     
+     广播通知: 配置客户端 configCliet 和服务端 ConfigServer 配置 amqp 支持 
+              向配置服务端 发起 bus-refresh 请求,刷新所有客户端配置;
+              curl -X POST "http://localhost:3344/actuator/bus-refresh"
+     定点通知: 不想全部通知,只想定点通知
+              指定具体某一个实例生效而不是全部
+              curl -X POST "http://ip(configServer):端口(configServer)/actuator/bus-refresh/{destination}"
+              curl -X POST "http://localhost:3344/actuator/bus-refresh/config-client:3355"
+              /bus/refresh请求不再发送到具体的服务实例上,而是发给config server 并通过destination参数类指定需要跟新配置的服务或实例
