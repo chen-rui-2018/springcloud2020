@@ -28,8 +28,8 @@ import java.util.List;
 @Slf4j
 @RequestMapping("/consumer")
 public class OrderController {
-    public  static final  String PAYMENT_URL = "http://cloud-payment-service";
-//    public  static final  String PAYMENT_URL = "http://localhost:8001";
+//    public  static final  String PAYMENT_URL = "http://cloud-payment-service";
+    public  static final  String PAYMENT_URL = "http://localhost:8001";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -69,4 +69,9 @@ public class OrderController {
         log.info("访问地址 uri:"+uri);
         return restTemplate.getForObject(uri + "/payment/lb", String.class);
     }
+    @GetMapping("/payment/zipkin")
+    public String paymentZipkin(){
+       return restTemplate.getForObject(PAYMENT_URL+"/payment/zipkin",String.class);
+    }
+
 }

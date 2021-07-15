@@ -10,3 +10,8 @@ eureka:
 spring:
   application:
     name: cloud-order-service
+  zipkin:
+    base-url: http://192.168.2.20:9411
+  sleuth:
+    sampler:
+      probability: 1 # 采样率值介于 0 - 1 之间, 1 表示全部采集

@@ -322,3 +322,60 @@ spingcloud 学习 一
               curl -X POST "http://ip(configServer):端口(configServer)/actuator/bus-refresh/{destination}"
               curl -X POST "http://localhost:3344/actuator/bus-refresh/config-client:3355"
               /bus/refresh请求不再发送到具体的服务实例上,而是发给config server 并通过destination参数类指定需要跟新配置的服务或实例
+              
+11.Spring Cloud Stream
+   屏蔽底层消息中间件的差异,降低切换成本,统一消息的编程模型;
+   是一个构建消息驱动微服务的框架;
+   应用程序通过inputs 或者 outputs 来与spring cloud stream 中的binder 对象交互;
+   通过我们配置来binding(绑定), 而Spring Cloud Stream 的 binder 对象负责与消息中间件交互;
+   所以,我们只需要搞清楚如何与Spring Cloud Stream 交互就可以方便使用消息驱动的方式;
+   
+   通过使用 Spring Integration 来连接消息代理中间件以实现消息时间驱动
+   Spring Cloud Stream 为一些供应商 的消息中间件产品提供了个性化的自动化配置实现, 引用了发布-订阅.消费组,分区的三个核心概念;
+   目前仅支持 rabbitMQ 和 Kafka;
+   
+   在没有绑定器这个概念的情况下,我们的springboot 应用要直接与消息中间件进行信息交互的时候, 由于各个消息中间构建的初衷不同;
+   他们的实现细节上会有较大的差异性;
+   通过定义绑定器作为中间层,完美地实现了 应用程序与消息中间件细节之间的隔离;
+   通过向应用程序暴露统一的channel 通道, 使得应用程序不需要再考虑各种不同的消息中间件实现;
+   
+   通过定义绑定器 Binder 作为中间层, 实现了应用程序与消息中间件细节之间的隔离;
+   
+   Stream 对消息中间件的进一步封装,可以做到代码层面对中间件的无感知, 甚至于动态的切换中间件(rabbitmq 切换为 kafka) ,
+   使得微服务开发的 高度解耦, 服务可以关注更多自己的业务流程;
+   Stream 中的消息通信方式 遵循了发布-订阅 模式;
+   标准流程: 
+          Binder: 连接中间件,屏蔽差异;
+          Channel: 通道,是队列Queue  的一种抽象, 在消息通讯系统中就是实现存储和转发的媒介,通过channel对队列进行配置;
+          Source 和 Sink : 简单的可理解为参照对象时Spring Cloud Stream 自身, 从Stream 发布消息就是 输出, 接收消息就是输入;
+          
+          @Input 注解标识输入通道, 通过该输入通道接收到的消息进入应用程序;
+          @Output 注解标识输出通道, 发布的消息将通过该通道离开应用程序;
+          @StreamListener 监听队列,用于消费者的队列的消息接收;
+          @EnableBinding 指信道 channel 和 exchang 绑定在一起;
+   场景: 订单系统做集群部署,都会从rabbitMQ中获取订单信息,
+         如果一个订单同时被两个服务获取到, 那么就会造成数据错误, 我们要避免这种情况;
+         用stream中的消息分组来解决;
+         在Stream 中处于同一个group中的多个消费者是竞争关系, 就能够保证消息只会被其中一个应用消费一次, 不同组是可以全面消费的(重复消费)
+   重复消费: 
+         默认分组group 是不同的,组流水号不一样 被认为不同组,可以消费;
+         自定义配置分组,将相同类型的消费者划分为同一组,形成竞争关系,只有一个消费者可以进行消费,解决重复消费问题;
+         
+   持久化: 配置分组后 可以消费宕机后未进行消费的服务端发送到mq的消息, 不会造成消息丢失, 未配置分组 则会造成消息丢失;
+   
+12. Spring cloud Sleuth 分布式请求链路跟踪
+    在微服务框架中,一个由客户端发起的请求, 在后端系统中会经过多个不同的服务节点调用,来协同产生最后的请求结果,每一个前段请求都会形成一条复杂的分布式服务调用链路;
+    链路中的任何一环出现高延时或错误都会引起整个请求最后的失败;
+    Spring cloud Sleuth 提供了一套完整的服务跟踪的解决方案,在分布式系统中提供追踪解决方案并且兼容支持了zipkin;
+    
+    表示一个请求链路,一条链路通过Trace Id 唯一标识, Span 标识 发起的请求信息,各span 通过parent Id 关联起来;
+                                                                             service4
+                                                                             Trace Id = x                                     
+     service1                 service2              service3          ->    span id = D    
+     Trace Id = x            Trace Id = x          Trace Id = x              parent id = C
+     span id = A        ->   span id = B       ->  span id = C  
+     parent Id = null        parent Id = A         parent Id = B
+                                                                             service 5
+                                                                             Trace Id = x    
+                                                                        ->   span id = E           
+                                                                             parent id = c
