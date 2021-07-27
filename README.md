@@ -3,10 +3,11 @@ spingcloud 学习 一
 1:新建 父工程project空间创建  
 
 2.服务注册中心总结:
-  组件名称  语言  cap  健康服务检查  对外暴露接口  springcloud 集成
-  Eureka   java  AP   可配支持      http         已集成
-  Consul   go    CP   支持          http/dns     已集成
-  Zookeeper java CP   支持          客户端        已集成
+  组件名称  语言  cap   健康服务检查  对外暴露接口  springcloud 集成
+  Eureka   java  AP    可配支持      http         已集成
+  Consul   go    CP    支持          http/dns     已集成
+  Zookeeper java CP    支持          客户端        已集成
+  Nacos   java  AP/CP  支持          客户端        已集成
   
 3. CPA
   CAP: 理论关注粒度是数据,而不是整体系统设计的;
@@ -379,3 +380,126 @@ spingcloud 学习 一
                                                                              Trace Id = x    
                                                                         ->   span id = E           
                                                                              parent id = c
+                                                                             
+13.spring cloud Alibaba
+  spring cloud Alibaba , 它是由一些 阿里巴巴 的开源组件, 和云产品组成的, 这个项目的目的是为了让大家所熟知的spring 框架, 其优秀的设计模式,和抽象理念,以给使用阿里巴巴 产品的java开发者
+  带来使用spring boot 和spring cloud 的更多便利;
+  1.服务的限流降级: 默认支持 servlet, Feign, RestTemplate , Dubbo 和 RocketMQ  限流降级的接入, 可以在运行时 通过 控制台 实时修改 限流降级 规则, 还支持 查看限流降级 metrics 控制;
+  2.服务注册与发现: 适配 sprig cloud 服务注册与发现标准, 默认集成了 Ribbon 的支持;
+  3.分布式配置管理: 支持分布式系统的 外部化配置 , 配置更改时 自动化刷新;
+  4.消息驱动能力: 基于 spring cloud stream 为微服务 应用构建消息驱动能力;
+  5.阿里云对象存储: 阿里云提供的海量,安全,低成本,高可靠的云存储服务. 支持在任何应用, 任何时间, 任何地点 存储和访问 任意类型的数据;
+  6.分布式任务调度: 提供秒级,精准,高可靠,高可用的 定时(基于 cron 表达式) 任务调度服务, 同事提供分布式的任务执行模型, 如网格任务, 网格任务支持 海量子任务 均匀分配到 所有worker( schedulerx-client ) 上执行;
+14. spring cloud Alibaba Nacos 服务注册和配置中心
+  Nacos 前四个字母分别为 Naming 和 Configuration 的前两个字母, 最后的s 为Service;
+        一个更易于构建云原生应用的动态服务发现,配置管理,和服务管理平台;
+        Nacos: Dynamic Naming and Configuration Service;
+        Nacos 就是注册中心 + 配置中心的组合;
+        替代 eureka 作为注册中心, 替代Config 作为配置中心;
+        https://github.com.alibaba/Nacos
+        官方文档: https://nacos.io/zh-cn/index.html
+                 https://spring-cloud-alibaba-group.github.io/github-pages/greenwich/spring-cloud-alibaba.html#_spring_cloud_alibaba_nacos_discovery;
+  Nacos 支持 AP 和 CP 模式的切换
+        C 是所有节点在同一时间看到的数据是一致的; 而A的定义是所有的请求都会收到响应;
+  何时选择何种模式: 
+        一般来说如果不需要存储服务级别的信息且服务实例是通过nacos-client 注册,并能够保持心跳上报,name就可以选择AP模式, 当前主流的服务 如spring cloud 和 Dubbo 服务,都适用于
+        AP模式, AP模式为了服务的可能性而减弱一致性,因此AP模式下只支持注册临时实例;
+        如果需要在服务级别编辑或者存储配置信息,那么CP是必须的, K8S服务 和DNS 服务则适用于CP模式,.
+        CP模式下则支持注册持久化实例, 此时则是以Raft协议为集群运行模式, 该模式下注册实例之前必须先注册服务,如果服务不存在,则会返回错误;
+        
+        curl -X PUT '$NACOS_SERVER:8848/nacos/v1/ns/operator/swithces?entry=serverMode&value=CP'
+        
+  Nacos 配置中心
+  https://nacos.io/zh-cn/docs/quick-start-spring-cloud.html
+        之所以要配置 spring.application.name, 是因为它是构成Nacos 配置管理 dataId 字段的一部分;
+        在Nacos Spring Cloud 中 dataId 的完整格式如下:
+        ${prefix}-${spring.profile.active}.${file-extension}
+        prefix 默认为 spring.application.name 的值, 也可以通过配置项, spring.cloud.nacos.config.prefix 来配置;
+        spring.profile.active 即为当前环境对应的profile, 详情可以参考spring boot 文档; 注意当 spring.profile.active 为空时,对应的连接符 - 也将不存在,dataId的拼接方式变成 
+           ${prefix}.${file-extension}
+        file-extension 为配置内容的数据格式, 可以通过配置项 spring.cloud.nacos.config.file-extension 来配置. 目前只支持 properties 和yaml 类型;
+        通过 spring Cloud 原生注解 @RefreshScope 实现自动更新;
+        最后公式 : yaml
+            ${spring.application.name}-${spring.profile.active}-${spring.cloud.nacos.config.file-extension}
+        
+  nacos 配置: namespace + group + dataId
+        类似java 里面的package 名和 类名 最外层的namespace 是可以用于区分部署环境的, group 和dataId 逻辑上区分两个目标对象;  
+        默认情况: 
+           Namespace = public ,Group = DEFAULT_GROUP, 默认 cluster 是 DEFAULT;
+        nacos 默认的命名空间是public ,NameSpace 主要用来时间隔离.
+        比方说我们现在有三个环境: 开发 ,测试 生产环境,我们可以创建三个Namespace 不同的Namespace 之间是隔离的;
+        Group 默认 是DEFAULT_GROUP ,Group 可以把不同的微服务划分到同一个分组里面去;
+        Service 就是微服务, 一个service 可以包含多个 Cluster(集群) , Nacos 默认Cluster 是 DEFAULT , Cluster 是对指定微服务的一个虚拟划分, 
+        比方说为了容灾, 将Service 微服务分别部署在了杭州机房 和 广州机房
+        这时就可以给杭州机房 的Service 微服务起一个集群名称(HZ),
+        给广州机房的Service 微服务起一个集群名称(GZ), 还可以尽量让同一个机房的微服务互相调用,以提升性能.
+        最后是Instance,就是微服务的实例;
+        
+        DataID 方案: 指定spring.profile.active 和配置文件的 DataID 来使不同环境下读取不同的配置;
+                     默认空间 + 默认分组 + 新建dev 和 test 两个DataID
+                     通过spring.profile.active 属性就能进行多环境下配置文件的读取;
+  Nacos 集群和持久化配置
+        http://nacos.io/zh-cn/docs/cluster-mode-quick-start.html
+        默认nacos 使用嵌入式数据库(derby) 实现的存储, 所以, 如果启动有多个默认配置下的 Nacos 节点, 数据存储 是存在一致性问题的.
+        为了解决这个问题, Nacos 采用了 集中式存储的方式来支持集群化部署, 目前支持Mysql 的存储;
+        Nacos 支持的三种部署模式:
+                       单机模式: - 用于测试和单机使用;
+                       集群模式: - 用于生产环境, 确保高可用;
+                       多集群模式: - 用于多数据中心场景;
+        1 个nginx + 3个Nacos + 1个mysql
+        https://github.com/alibaba/nacos/releases/tag/1.1.4
+        nacos :
+        application.properties   使用外接数据库
+        spring.datasource.platform=mysql
+        db.num=1
+        db.url.0=jdbc:mysql:172.17.0.3:3306/nacos_config?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true
+        db.user=root
+        db.password=1234Qwer
+        
+        cluster.conf 集群配置
+           192.168.2.20:3333
+           192.168.2.20:4444
+           192.168.2.20:5555
+        startup.sh  启动文件  增加 分端口启动 -p
+        while getopts ":m:f:s:p:" opt
+        do
+            case $opt in
+                m)
+                    MODE=$OPTARG;;
+                f)
+                    FUNCTION_MODE=$OPTARG;;
+                s)
+                    SERVER=$OPTARG;;
+                p)
+                    PORT=$OPTARG;;
+                ?)
+                echo "Unknown parameter"
+                exit 1;;
+            esac
+        done
+        ...
+        nohup $JAVA -Dserver.port=${PORT} ${JAVA_OPT} nacos.nacos >> ${BASE_DIR}/logs/start.out 2>&1 &
+        Nginx:
+        upstream cluster{
+             server 127.0.0.1:3333; 
+             server 127.0.0.1:4444; 
+             server 127.0.0.1:5555;      
+        
+            }
+        
+            server {
+                listen       1111;
+                server_name  localhost;
+        
+                #charset koi8-r;
+        
+                #access_log  logs/host.access.log  main;
+        
+                location / {
+                   # root   html;
+                   # index  index.html index.htm;
+                    proxy_pass http://cluster;
+                }
+            }
+15.Spring Cloud Alibaba Sentinel
+    
