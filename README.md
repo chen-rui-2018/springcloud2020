@@ -501,5 +501,146 @@ spingcloud 学习 一
                     proxy_pass http://cluster;
                 }
             }
-15.Spring Cloud Alibaba Sentinel
-    
+15.Spring Cloud Alibaba Sentinel 实现熔断与限流
+         官网: https://github.com/alibaba/Sentinel
+         面向云原生微服务的流量控制/熔断/降级组件
+         1.单独一个组件,可以独立出来;
+         2.直接界面化的细粒度统一配置;
+         
+         Sentinel 具有以下特征:
+         
+         丰富的应用场景：Sentinel 承接了阿里巴巴近 10 年的双十一大促流量的核心场景，例如秒杀（即突发流量控制在系统容量可以承受的范围）、消息削峰填谷、集群流量控制、实时熔断下游不可用应用等。
+         完备的实时监控：Sentinel 同时提供实时的监控功能。您可以在控制台中看到接入应用的单台机器秒级数据，甚至 500 台以下规模的集群的汇总运行情况。
+         广泛的开源生态：Sentinel 提供开箱即用的与其它开源框架/库的整合模块，例如与 Spring Cloud、Dubbo、gRPC 的整合。您只需要引入相应的依赖并进行简单的配置即可快速地接入 Sentinel。
+         完善的 SPI 扩展点：Sentinel 提供简单易用、完善的 SPI 扩展接口。您可以通过实现扩展接口来快速地定制逻辑。例如定制规则管理、适配动态数据源等。
+       
+     Sentinel 分为两个部分:
+          核心库: (java客户端) 不依赖任何框架/库,能够运行于所有java运行时环境,同时对 Dubbo/ Spring Cloud 等框架也有较好的支持;    
+          控制台: (Dashboard) 基于Spring Boot 开发 打包后可以直接运行, 不需要额外的Tomcat 等应用容器;
+      Sentinel: 为懒加载机制, 执行一次访问后可查看对应的 注册进来的服务;
+      流控规则: 
+          基本介绍:
+              资源名称: 唯一名称,默认请求路径;
+              针对来源: Sentinel 可以针对调用者限流,填写微服务名称, 默认default (不区分来源)
+              阈值类型/单机阈值: -QPS(每秒钟的请求数量): 当调用该api 的QPS时 达到阈值的时候进行限流;
+                               -线程数: 当调用该api的线程数量达到阈值时, 进行限流;
+              是否集群: 不需要集群;
+              流控模式: -直接: api 达到限流条件时, 直接限流;
+                       -关联: 当关联的组员达到阈值时,就限流自己; (当与A关联的资源B达到阈值后,就限流自己, B惹事,A 担责任  -- 订单服务  支付服务, 支付服务压力大 限流订单服务) 
+                       -链路: 只记录指定链路上的流量( 指定资源 从入口资源进来的流量,如果达到阈值,就进行限流[api级别的针对来源]
+         
+               流控效果: -快速失败: 直接失败,异常;
+                        -warm up: 根据codeFactor (冷加载因子,默认3) 的值, 从阈值/codeFactor,经过预热时长,才达到设置的QPS阈值;
+                                  公式:阈值除以coldFactor,经过预热时长后才会达到阀值;
+                                  WarmUpController
+                        -排队等待: 匀速排队, 让请求以匀速的速度通过, 阈值类型必须设置为QPS,否则无效;
+      降级规则:  
+             RT(平均响应时间,秒级):
+               -平均响应时间,超出阈值 且 在时间窗口内通过的请求>=5, 两个条件同时满足后触发降级;
+               -窗口期过后关闭断路器;
+               -RT 最大4900ms(更大的需要通过-Dcsp.sentinel.statistic.max.rt=xxxx 才能生效)
+             异常比例(秒级):
+               QPS >= 5 且异常比例(秒级统计) 超过阈值时, 触发降级; 时间窗口结束后,关闭降级;
+             异常数(分钟级):
+               异常数(分钟统计) 超过阈值时, 触发降级; 时间窗口结束后,关闭降级;若timewindow 小于60s 则结束熔断状态后仍可能再进入熔断状态;
+             
+      Sentinel 熔断降级会在调用链路中 某个资源出现不稳定状态时, ( 例如调用超时, 或异常比例升高),对这个资源的调用进行限制, 让请求快速失败, 避免影响到其它资源而导致级联错误;
+      当资源被降级后, 在接下来的降级时间窗口内,对该资源的调用都自动熔断(默认行为是抛出 DegradeException)
+      Sentinel 的断路器是没有半开状态的; 半开- Hystrix ;
+      热点规则: 热点参数限流
+             热点即经常访问的数据。很多时候我们希望统计某个热点数据中访问频次最高的 Top K 数据，并对其访问进行限制。比如：
+             商品 ID 为参数，统计一段时间内最常购买的商品 ID 并进行限制
+             用户 ID 为参数，针对一段时间内频繁访问的用户 ID 进行限制
+             热点参数限流会统计传入参数中的热点参数，并根据配置的限流阈值与模式，对包含热点参数的资源调用进行限流。热点参数限流可以看做是一种特殊的流量控制，仅对包含热点参数的资源调用生效。  
+             @SentinelResource(value = "testHotKey",blockHandler = "deal_testHotKey") value 资源原名称, blockHandler 自定义兜底方法;
+             参数例外项:
+                   配置参数值的例外项 , 参数值为设置的参数值- 遵循新的热点规则; 热点参数注意项, 参数必须是基本类型或者String;
+      @SentinelResource : 处理的是Sentinel 控制台 配置的违规情况, 有blockHander方法配置的兜底处理;
+      RuntimeException : java 运行时异常,   @SentinelResource 不管 RuntimeException;
+        -- @SentinelResource   主管配置 sentinel 配置出错,运行出错该走异常走异常;
+      系统规则: 
+            Sentinel 系统自适应限流从整体维度对应用入口流量进行控制，结合应用的 Load、CPU 使用率、总体平均 RT、入口 QPS 和并发线程数等几个维度的监控指标，
+            通过自适应的流控策略，让系统的入口流量和系统的负载达到一个平衡，让系统尽可能跑在最大吞吐量的同时保证系统整体的稳定性。
+            系统规则支持以下的模式：
+            Load 自适应（仅对 Linux/Unix-like 机器生效）：系统的 load1 作为启发指标，进行自适应系统保护。当系统 load1 超过设定的启发值，
+                 且系统当前的并发线程数超过估算的系统容量时才会触发系统保护（BBR 阶段）。系统容量由系统的 maxQps * minRt 估算得出。设定参考值一般是 CPU cores * 2.5。
+            CPU usage（1.5.0+ 版本）：当系统 CPU 使用率超过阈值即触发系统保护（取值范围 0.0-1.0），比较灵敏。
+            平均 RT：当单台机器上所有入口流量的平均 RT 达到阈值即触发系统保护，单位是毫秒。
+            并发线程数：当单台机器上所有入口流量的并发线程数达到阈值即触发系统保护。
+            入口 QPS：当单台机器上所有入口流量的 QPS 达到阈值即触发系统保护。
+    @SentinelResource:
+            1.按资源名称限流 + 后续处理:
+                             @GetMapping(value = "/byResource")
+                             @SentinelResource(value = "byResource",blockHandler = "handlerException")
+                             返回自定义的处理结果
+                             问题: 关闭服务. 流控规则消失 临时配置;
+            2.按url地址限流 + 后续处理:
+                              @GetMapping(value = "/rateLimit/byUrl")
+                              @SentinelResource(value = "byUrl")
+                             返回sentinel自带的处理结果 Blocked by Sentinel (flow limiting)
+                             
+            3.上面方案面临的问题:
+                 - 系统默认的,没有体现我们自己的业务要求;
+                 - 依照现有条件, 我们自定义的处理方法又和业务逻辑代码耦合在一块,不直观;
+                 - 每个业务添加一个兜底方法,代码膨胀;
+                 - 全局统一的处理方法没有体现;
+            4.客户自定义限流处理逻辑:
+                  创建 CustomerBlockHandler 类用于自定义限流处理逻辑;
+                   @GetMapping(value = "/rateLimit/customerBlockHandler2")
+                      @SentinelResource(value = "customerBlockHandler2",
+                              blockHandlerClass = CustomerBlockHandler.class,
+                              blockHandler = "handlerException2")
+                     public CommonResult customerBlockHandler2(){  }        
+                  
+                 ------------------------------------------------------------- 
+                  
+                  public class CustomerBlockHandler {
+                  
+                      public static CommonResult handlerException(BlockException exception){
+                          return  new CommonResult(444,"按客户自定义,global handlerException-------1");
+                      }
+                      public static  CommonResult handlerException2(BlockException exception){
+                          return  new CommonResult(444,"按客户自定义,global handlerException-------2");
+                      }
+            5.更多注解属性说明:
+                      Sentinel 三个核心api : SphU 定义资源
+                                            Tracer 定义统计
+                                            ContextUtil 定义上下文
+            
+       -- fallback 和  blockHandler
+           @SentinelResource(value = "fallback",fallback = "handlerFallback",blockHandler = "blockHandler") // 配置blockHandler,配置fallback
+           public CommonResult<Payment> fallback(@PathVariable("id") Long id) {}
+           //falback 示例
+           public CommonResult handlerFallback(@PathVariable("id") Long id,Throwable e) {}
+            //blockHandler 示例
+           public CommonResult blockHandler(@PathVariable("id") Long id, BlockException e) {}
+           只配置 fallback 或只配置 blockHandler  则只有配置的生效;
+           若blockHandler 和 fallback 都进行了配置, 则被限流降级而抛出 BlockException 时 只会进入bolckerHandler处理;
+           
+       -- 忽略属性:
+          @SentinelResource(value = "fallback",fallback = "handlerFallback",blockHandler = "blockHandler",exceptionsToIgnore = {IllegalArgumentException.class})
+    -- sentinel 配置持久化
+       1. 服务重启后 配置规则会消失;
+       策略1:将限流配置规则 持久化 进Nacos 保存, 重要刷新8401 某个rest 地址, sentinel 控制台 的流控规则就能够看到,
+             只要nacos 里面的配置不删除, 针对8401 上sentinel 上的流控规则持续有效;
+          --example [
+                       {
+                           "resource":"/rateLimit/byUrl",
+                           "limiitApp":"default",
+                           "grade":1,
+                           "count":1,
+                           "starategy":0,
+                           "controlBehavior":0,
+                           "clustarMode":false
+           
+                       }
+                    ]
+           "resource":资源名称,
+           "limiitApp":来源应用,
+           "grade":阈值类型, 0 表示线程数 1 表示QPS,
+           "count":单机阈值,
+           "starategy":流控模式 0-直接, 1-关联, 2-链路,
+           "controlBehavior":流控效果 0-快速失败, 1-表示warm-up,2,排队等待;
+           "clustarMode":是否集群
+           
+           重启 8401 服务后 调用 配置了流控的 路径 sentinel 配置会自动出现

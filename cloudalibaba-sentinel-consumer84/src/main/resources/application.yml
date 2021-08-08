@@ -1,0 +1,26 @@
+server:
+  port: 84
+spring:
+  application:
+    name: cloudalibaba-sentinel-consumer
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.2.20:8848
+    sentinel:
+      transport:
+        #配置 sentinel dashboard 地址
+        dashboard: 192.168.2.20:8080
+        #默认 8719 端口, 假如被占用,会自动扫描 从占用的8719 开始依次加1, 直到找到未被占用的端口
+        port: 8719
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+
+server-url:
+   nacos-user-service: http://nacos-payment-provider
+feign:
+  sentinel:
+    enabled: true
