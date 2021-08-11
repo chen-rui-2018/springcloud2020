@@ -644,3 +644,74 @@ spingcloud 学习 一
            "clustarMode":是否集群
            
            重启 8401 服务后 调用 配置了流控的 路径 sentinel 配置会自动出现
+           
+16: Spring cloud Alibaba Seata 处理分布式事务
+    1.一次业务操作 需要跨多个数据源或需要跨多个系统进行远程调用,就会产生分布式事务问题;
+      单体应用 被拆分成微服务应用, 原来的 三个模块被拆分成三个独立的应用, 分别使用三个独立的数据源, 业务操作 需要 调用三个服务来完成.
+      此时 每个服务内部的数据一致性由本地事务来保证, 但是全局的数据一致性问题没有办法保证;
+ Seata: 是一款开源的分布式事务解决方案,致力于在微服务架构下提供高性能和简单易用的分布式事务服务;
+    一个典型的分布式事务过程: 
+                     分布式事务处理过程--- ID + 三组件模型:
+                                               Transactin ID XID : 全局唯一的事务ID;
+                                               三组件概念:
+                                                      Transaction Coordinator (TC) : 事务协调器 - 维护全局和分支事务的状态, 驱动全局事务提交或回滚;
+                                                      Transaction Manager (TM) :  事务管理器 - 定义全局事务的范围, 开始全局事务,提交或回滚全局事务;
+                                                      Resource Manager (RM) :资源管理器 - 管理分支事务处理的资源,与TC交谈以注册分支事务 和 报告分支事务的状态,并驱动分支事务提交或回滚;
+    处理过程: 1.TM 向 TC 申请开启一个全局事务, 全局事务创建成功,并生成一个全局唯一的XID;
+             2.XID 在微服务 调用链路的上下文中传播;
+             3.RM 向TC 注册分支事务, 将其纳入 XID 对应全局事务的管辖;
+             4,TM  向 TC 发起 针对 XID 的全局 提交 或者 回滚决议;
+             5.TC 调度 XID 下管辖 的全部分支 事务完成提交 或 回滚请求;
+             
+             
+  下载: https://github.com/seata/seata/releases 
+  使用: 首先修改 file.conf --  D:\mysoft\seata-server-1.4.1\seata\conf\file.conf
+          1.备份原始file.conf 文件;
+          2.主要修改 -  自定义事务组名称, 事务组日志存储模式为db  , 数据库连接信息
+          file.conf :
+                   -service 模块
+                           service {
+                              vgroup_mapping.my_test_tx_group = "fsp_tx_group"
+                             }
+                   -store 模块 
+                          store {
+                            ## store mode: file、db
+                            mode = "db" 
+                          
+                            ## file store property
+                            file {
+                              ## store location dir
+                              dir = "sessionStore"
+                            }
+                          
+                            ## database store property
+                            db {
+                              ## the implement of javax.sql.DataSource, such as DruidDataSource(druid)/BasicDataSource(dbcp) etc.
+                              datasource = "dbcp"
+                              ## mysql/oracle/h2/oceanbase etc.
+                              db-type = "mysql"
+                              driver-class-name = "com.mysql.jdbc.Driver"
+                              url = "jdbc:mysql://192.168.2.20:3306/seata"
+                              user = "root"
+                              password = "1234Qwer"
+                            }
+                          }
+          registry.conf:
+                  registry {
+                    # file 、nacos 、eureka、redis、zk、consul、etcd3、sofa
+                    type = "nacos"
+                  
+                    nacos {
+                      serverAddr = "192.168.2.20:8848"
+                      namespace = ""
+                      cluster = "default"
+                    }
+                   }
+业务说明:
+       当用户下单时, 会在订单服务中创建一个订单,然后通过远程调用库存服务来扣减下单商品的库存, 再通过远程调用账户服务来扣减用户账户里面的余额, 最后在订单服务中 修改订单状态为已完成;
+       跨越三个数据库,及两次远程调用, 很明显会有分布式事务问题;
+       下订单--> 扣库存-->减账户(余额)-->改订单状态;
+       订单服务: seate-order-service
+       库存服务: seate-storage-service
+       账户服务: seate-account-service
+       
